@@ -1,0 +1,9 @@
+.*
+Example/**
+Example2/**
+project/
+target/
+*.sbt
+*.dat
+*.csv
+!/.gitignore
