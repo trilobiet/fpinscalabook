@@ -92,15 +92,21 @@ object Option {
   def sequence[A](a: List[Option[A]]): Option[List[A]] =
     a match {
       case Nil => Some(Nil)  // end of list must not break the chain of 'Some's!
-      case None :: _ => None
-      case h :: t => h.flatMap( h2 => sequence(t).map(t2 => h2::t2) )
+      case head :: tail => head.flatMap( h => sequence(tail).map(t => h::t) )
     }
 
   /* ------------------
     Exercise 4.5
   ------------------ */
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] =
-    ???
+  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] =
+    as match {
+      case Nil => Some(Nil) // end of list must not break the chain of 'Some's!
+      case head :: tail => f(head).flatMap( h => traverse(tail)(f).map(t => h::t) )
+    }
+
+  def seq2[A](a: List[Option[A]]): Option[List[A]] =
+    traverse(a)(x => x)
+
 
 
   def main(args: Array[String]): Unit = {
@@ -114,9 +120,15 @@ object Option {
     println(none.orElse2(Some[String]("Hoort u mij")))
 
     val lst1 = List( Some("cat"), Some("dog"), Some("bird") )
-    val lst2 = List( Some("cat"), Some("dog"), None,Some("bird") )
+    val lst2 = List( Some("cat"), Some("dog"), None, Some("bird") )
+    // should print "Some(List(cat, dog, bird))"
     println(sequence(lst1))
+    // should print "None"
     println(sequence(lst2))
+    // should print "Some(List(cat, dog, bird))"
+    println(seq2(lst1))
+    // should print "None"
+    println(seq2(lst2))
 
   }
 
