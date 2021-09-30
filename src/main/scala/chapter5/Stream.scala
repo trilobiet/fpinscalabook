@@ -105,6 +105,54 @@ trait Stream[+A] {
       case _ => None
     }
 
+  def takeWhileUnfold(p: A => Boolean): Stream[A] =
+    unfold(this) {
+      case Cons(h,t) if p(h()) => Some((h(), t()))
+      case _ => None
+    }
+
+  def zipWith[B>:A](s: Stream[B])(f: (B,B) => B): Stream[B] =
+    unfold(this,s) {
+      case (Cons(h,t),Cons(i,u)) =>
+        Some( ( f(h(),i()), ( t(),u() )) )
+      case _ => None
+    }
+
+  def zipAll[B](s: Stream[B]): Stream[(Option[A],Option[B])] =
+    unfold(this,s) {
+      case (Cons(h,t),Cons(i,u)) => Some( (Some(h()),Some(i())), (t(),u()) )
+      case (Cons(h,t),_) => Some( (Some(h()),None), (t(), empty) )
+      case (_,Cons(i, u)) => Some( (None,Some(i())), (empty,u()) )
+      case _ => None
+    }
+
+  /* ------------------
+    Exercise 5.14
+  ------------------ */
+  def startsWith[B>:A](s: Stream[B]): Boolean = {
+    val p: Stream[Boolean] = unfold(this,s) {
+      case (Cons(h,t),Cons(i,u)) => Some(h()==i(),(t(),u()))
+      case (Cons(_,t),Empty) => Some(true,(t(),empty))
+      case (_,Cons(_,_)) => Some(false,(empty,empty))
+      case _ => None
+    }
+    !p.exists(_==false)
+  }
+
+  /* ------------------
+    Exercise 5.15
+  ------------------ */
+  def tails: Stream[Stream[A]] = {
+    unfold(this) {
+      case Empty => None
+      case Cons(h,t) => Some(Cons(h,t),t())
+      // case s => Some((s, s.drop(1))) // has same effect as line above
+    }
+    .append(Stream(empty)) // is always a suffix
+  }
+
+  def hasSubsequence[B](s: Stream[B]): Boolean =
+    tails.exists(t => t.startsWith(s))
 
 }
 
@@ -175,6 +223,8 @@ object Stream {
     unfold[Int,Int](1)(_ => Some(1,1))
 
 
+
+
   def main(args: Array[String]): Unit = {
     val s1 = Stream.apply("a","b","c","d","e","f","g","h")
     println(s1.toList)
@@ -220,6 +270,40 @@ object Stream {
 
     println(s1.takeUnfold(4).toList)
 
+    // should print List(5, 7, 9)
+    val tw3 = s2.takeWhileUnfold(_%2==1) // takeWhile odd
+    println(tw3.toList)
+
+    // As long as both list have items add them
+    // Should print List(18, 21, 24)
+    val z1 = s2.zipWith(s4)(_+_)
+    println(z1.toList)
+
+    // Should print
+    // List((Some(13),Some(5)), (Some(14),Some(7)), (Some(15),Some(9)), (None,Some(8)), (None,...)
+    val z2 = s4.zipAll(s2)
+    println(z2.toList)
+
+    // List((Some(a),Some(13)), (Some(b),Some(14)), (Some(c),Some(15)), (Some(d),None), ...)
+    val z3 = s1.zipAll(s4)
+    println(z3.toList)
+
+    val s5 = Stream.apply("a","b","c")
+    val s6 = Stream.apply("a","b","z")
+    val s7 = Stream.apply("x","b","c","d")
+    println(s1.startsWith(s5)) // true
+    println(s1.startsWith(s6)) // false
+    println(s1.startsWith(s7)) // false
+    println(s5.startsWith(s1)) // false
+
+    val tls =  s5.tails
+    // Should print List(List(a, b, c), List(b, c), List(c), List())
+    println(tls.map(_.toList).toList)
+
+    val s8 = Stream("c","d","e")
+    val s9 = Stream("c","d","x")
+    println(s1 hasSubsequence s8) // true
+    println(s1 hasSubsequence s9) // false
 
   }
 
