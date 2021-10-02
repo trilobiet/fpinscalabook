@@ -1,22 +1,41 @@
 package chapter6
 
+import SimpleRNG._
+
 import scala.annotation.tailrec
 
 trait RNG {
   def nextInt: (Int, RNG)
 }
 
-case class SimpleRNG(seed: Long) extends RNG {
-
-  def nextInt: (Int, RNG) = {
-    val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
-    val nextRNG = SimpleRNG(newSeed)
-    val n = (newSeed >>> 16).toInt
-    (n, nextRNG)
-  }
-}
 
 object SimpleRNG {
+
+  case class SimpleRNG(seed: Long) extends RNG {
+
+    def nextInt: (Int, RNG) = {
+      val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+      val nextRNG = SimpleRNG(newSeed)
+      val n = (newSeed >>> 16).toInt
+      (n, nextRNG)
+    }
+  }
+
+  type RandFunction[+A] = RNG => (A, RNG)
+
+  val int: RandFunction[Int] = _.nextInt
+
+  def unit[A](a: A): RandFunction[A] = r => (a,r)
+
+  def map[A,B](rf: RandFunction[A])(f: A => B): RandFunction[B] =
+    (rng: RNG) => {
+      val (a,rng2) = rf(rng)
+      (f(a),rng2)
+    }
+
+  def nonNegativeEven: RandFunction[Int] =
+    map(nonNegativeInt)(i => i - i%2)
+
 
   /* ------------------
     Exercise 6.1
@@ -72,6 +91,54 @@ object SimpleRNG {
     next(count,rng,List.empty[Int])
   }
 
+
+  /* ------------------
+    Exercise 6.5
+  ------------------ */
+  def doubleRf: RandFunction[Double] = {
+    // (nonNegativeInt(rng)._1.toDouble / Int.MaxValue, rng)
+    map(nonNegativeInt)(i => i.toDouble/Int.MaxValue)
+  }
+
+  /* ------------------
+    Exercise 6.6
+  ------------------ */
+  def map2[A,B,C](ra: RandFunction[A],rb: RandFunction[B])(f: (A,B) => C): RandFunction[C] =
+    (rng: RNG) => {
+      val (a,rng2) = ra(rng)
+      val (b,rng3) = rb(rng2)
+      (f(a,b),rng3)
+    }
+
+  def both[A,B](ra: RandFunction[A], rb: RandFunction[B]): RandFunction[(A,B)] =
+    map2(ra, rb)((_, _))
+
+  val randIntDouble: RandFunction[(Int, Double)] =
+    both(int, double)
+
+  val randDoubleInt: RandFunction[(Double, Int)] =
+    both(double, int)
+
+  /* ------------------
+    Exercise 6.7
+    hint: use foldRight and map2
+  ------------------ */
+  def sequence[A](fs: List[RandFunction[A]]): RandFunction[List[A]] = {
+
+    val lstEmpty = List[A]()
+    val zero:RandFunction[List[A]] = rng => (lstEmpty,rng) // is a unit(List[A]())
+    fs.foldRight(zero)( (f: RandFunction[A], result: RandFunction[List[A]]) =>
+      map2(f, result)( (a:A, b:List[A]) => a::b)
+    )
+  }
+
+  def intSeq(count: Int): RandFunction[List[Int]] = {
+
+    val ints: List[RandFunction[Int]] = List.fill(count)(int)
+    sequence[Int](ints)
+  }
+
+
   def main(args: Array[String]): Unit = {
 
     val rng = SimpleRNG(42)
@@ -92,6 +159,24 @@ object SimpleRNG {
 
     // Should always print (List(800519575, -930744967, -1427999009, 769882549),SimpleRNG(52462850924773))
     println(ints(4)(SimpleRNG(2001)))
+
+
+    type RandFunction[+A] = RNG => (Int, RNG)
+    def p:RandFunction[Int] = (r:RNG) => r.nextInt
+
+    println(p.apply(SimpleRNG(42)))
+
+    println(doubleRf.apply(SimpleRNG(42)))
+
+    println(randIntDouble.apply(SimpleRNG(42)))
+    println(randDoubleInt.apply(SimpleRNG(42)))
+
+
+    val seq = sequence(List(int,nonNegativeEven)).apply(SimpleRNG(42))
+    println(seq)
+
+    // Same as println(ints(4)(SimpleRNG(2001))) though in reverse order...
+    println(intSeq(4).apply(SimpleRNG(2001)))
 
   }
 
