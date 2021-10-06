@@ -80,7 +80,6 @@ object State {
     val (i3,_)    = s.run(rng2)
 
     println( rng0 + "\n  ↓ \n" + i1 + "\n" + rng1 + "\n  ↓ \n" + i2 + "\n" + rng2 + "\n  ↓ \n" + i3 )
-    //println( rng0 + " -> " + (i1,rng1) + " -> " + (i2,rng2) + " -> " + (i3)
   }
 
 }
