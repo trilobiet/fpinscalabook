@@ -25,6 +25,7 @@ object SimpleRNG {
 
   val int: RandFunction[Int] = _.nextInt
 
+  // unit(a) = RNG => (a, RNG)
   def unit[A](a: A): RandFunction[A] = r => (a,r)
 
   def map[A,B](rf: RandFunction[A])(f: A => B): RandFunction[B] =
@@ -138,6 +139,47 @@ object SimpleRNG {
     sequence[Int](ints)
   }
 
+  /* ------------------
+    Exercise 6.8
+  ------------------ */
+  def flatMap[A,B](f: RandFunction[A])(g: A => RandFunction[B]): RandFunction[B] =
+
+    rng => {
+      val (a,r) = f(rng)
+      g(a)(r)
+    }
+
+    /* Explained:
+    rng => {
+      val (a:A,r:RNG) = f(rng)
+      val h: RandFunction[B] = g(a)
+      h(r)
+    } */
+
+
+  def nonNegativeLessThan(n: Int): RandFunction[Int] =
+    flatMap(nonNegativeInt)(
+      // argument here is g:Int => RandFunction[Int]
+      i => {
+        val mod = i % n
+        if (i + (n-1) - mod >= 0) rng => (mod,rng) // Is a RandFunction[Int]
+        else nonNegativeLessThan(n) // Recursively try again, with a new RandFunction[Int]
+      }
+    )
+
+
+  /* ------------------
+    Exercise 6.8
+  ------------------ */
+  def mapThroughFlatmap[A,B](rf: RandFunction[A])(f: A => B): RandFunction[B] =
+    flatMap(rf)(a => unit(f(a)))
+
+
+  def map2ThroughFlatmap[A,B,C](ra: RandFunction[A],rb: RandFunction[B])(f: (A,B) => C): RandFunction[C] =
+    flatMap(ra) {
+      a => map(rb)(b => f(a,b))
+    }
+
 
   def main(args: Array[String]): Unit = {
 
@@ -177,6 +219,8 @@ object SimpleRNG {
 
     // Same as println(ints(4)(SimpleRNG(2001))) though in reverse order...
     println(intSeq(4).apply(SimpleRNG(2001)))
+
+    println(nonNegativeLessThan(100)(SimpleRNG(42)))
 
   }
 
